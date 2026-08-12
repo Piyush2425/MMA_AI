@@ -1,0 +1,32 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Video files (large data)
+*.mp4
+*.avi
+*.mov
+*.mkv
+videos/*.mp4
+videos/*.avi
+videos/*.mov
+videos/*.mkv
+
+# ML models and large outputs
+models/*.pkl
+data/*.csv
+!data/red.csv
+!data/black.csv
+results/*.csv
+results/*.png
