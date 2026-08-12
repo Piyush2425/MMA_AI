@@ -7,65 +7,66 @@ This project supports the research paper:
 
 ---
 
-## 1. Project Workflow & Directory Layout
+## 🔗 Highlighted Dataset Links
 
-To minimize complexity, all scripts have been consolidated into **two core Python files**:
+The final extracted timelines and kinematic features for both fighters are publicly hosted in this repository:
+* **Fighter Red Dataset**: [data/red.csv](https://github.com/Piyush2425/MMA_AI/blob/main/data/red.csv) (2,073 rows of kinematic logs)
+* **Fighter Black Dataset**: [data/black.csv](https://github.com/Piyush2425/MMA_AI/blob/main/data/black.csv) (2,118 rows of kinematic logs)
 
-1. **[main.py](file:///c:/Users/akaom/Desktop/MMA/main.py)**: Performs person tracking (YOLOv8) + joint landmark extraction (MediaPipe Pose), computes kinematic features (elbow angles, wrist/ankle velocities), classifies actions using combat heuristics on the fly, and logs them.
-2. **[train_model.py](file:///c:/Users/akaom/Desktop/MMA/train_model.py)**: Loads the fighter timelines, trains `RandomForestClassifier` and `LogisticRegression` models, and outputs accuracy reports.
-
-### 📂 Directory Structure
-* `main.py`: Interactive/Headless pose processing & action label logger.
-* `train_model.py`: Model training script.
-* `requirements.txt`: Project package dependencies.
-* `.gitignore`: Keeps repository clean by excluding cache, venv, model binaries, and raw videos.
-* `data/`
-  * `red.csv`: Continuous timeline, kinematic features, and actions for Fighter Red.
-  * `black.csv`: Continuous timeline, kinematic features, and actions for Fighter Black.
+Both datasets include the continuous video timeline (`timestamp`), the kinematic joint features, and the target movement labels.
 
 ---
 
-## 2. Setup & Installation
+## 📊 Dataset Collection Methodology
 
-### A. Create Virtual Environment
-```powershell
-# Create environment
-python -m venv .venv
+The dataset was generated from a boxing/combat sparring video using an automated, pipeline that extracts features frame-by-frame:
 
-# Activate environment (PowerShell)
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
-.venv\Scripts\Activate.ps1
+```text
+       Video Source (MMA.mp4)
+                 ↓
+     Fighter Tracking (YOLOv8-nano)
+                 ↓
+    Pose Estimation (MediaPipe Pose)
+                 ↓
+  Kinematic Feature Extraction (main.py)
+                 ↓
+  Split Fighter Logs (red.csv & black.csv)
 ```
 
-### B. Install Dependencies
-```powershell
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-```
+1. **Detection & Tracking**: A pre-trained **YOLOv8-nano** model detects the fighters, and a **BoT-SORT** tracker tracks each fighter across frames, assigning them unique tracker IDs to keep their timelines separate.
+2. **Cropping & Pose Extraction**: The bounding box of each fighter is cropped and fed into **MediaPipe Pose**, which extracts the $x, y$ coordinates and visibility scores for 33 body joints.
+3. **Coordinate Normalization**: All coordinates are mapped back to the full video dimensions and normalized to a scale of $[0, 1]$ to ensure translation and scale invariance.
+4. **Kinematic Feature Calculations**: At each frame, the pipeline calculates:
+   * **Elbow Angles**: Degree rotations of left and right elbows.
+   * **Velocities**: Instantaneous velocities of the wrists and ankles (displacement per second in normalized coordinates).
+   * **Movement Intensity**: Average of hand and leg speeds.
+5. **Auto-Classification Rules**: Using physical heuristics (e.g. wrist speed $> 1.1$ and elbow angle $> 105^\circ$ for punches; ankle speed $> 0.9$ for kicks), each frame is automatically labeled and split into `data/red.csv` and `data/black.csv`.
 
 ---
 
 ## 3. How to Run the Pipeline
 
-### A. Run Pose Extraction & Real-Time Action Feed
+### A. Install Dependencies
+```powershell
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### B. Run Pose Extraction & Real-Time Action Feed
 To process the video and open a playback window showing real-time skeletons and action classifications above the fighters' heads:
 ```bash
 python main.py
 ```
 *(Press `q` inside the video playback window to stop early and save timelines).*
 
-### B. Run High-Speed Headless Extraction (Recommended)
-To bypass graphic rendering and process the video at the maximum speed of your processor with **zero data loss**:
+### C. Run High-Speed Headless Extraction
+To bypass graphic rendering and process the video at maximum hardware speed with **zero data loss**:
 ```bash
 python main.py --no-window
 ```
 
-This generates:
-* `data/red.csv` (Fighter Red's logs)
-* `data/black.csv` (Fighter Black's logs)
-
-### C. Train the Machine Learning Classifier
-Once the CSV timelines are saved, run the classifier training script:
+### D. Train the Machine Learning Classifiers
+Once the CSV timelines are saved, run the training script:
 ```bash
 python train_model.py
 ```
@@ -74,7 +75,7 @@ python train_model.py
 
 ## 4. Machine Learning Model Results
 
-By training the model on the full-length video timeline ($2,\!073\text{ frames}$), the Random Forest Classifier achieved an overall **Accuracy of 75.60%**.
+By training the classifier on the complete dataset ($1,\!258\text{ test frames}$), the Random Forest Classifier achieved an overall **Accuracy of 75.60%** with a Macro-F1 score of **0.7540**.
 
 ### Classifier Performance Matrix
 
@@ -94,7 +95,3 @@ By training the model on the full-length video timeline ($2,\!073\text{ frames}$
 | **Accuracy** | | | **0.76** | **1258** |
 | **Macro Average** | **0.78** | **0.74** | **0.75** | **1258** |
 | **Weighted Average** | **0.78** | **0.76** | **0.76** | **1258** |
-
-### Research Key Findings:
-1. **Strike Lateralization (Left vs. Right)**: By including individual left/right hand velocities and elbow angles, the model successfully resolved punch lateralization, scoring an **$86\%$ F1-score for Left Punches** and **$99\%$ F1-score for Right Punches**.
-2. **Lower Body Actions (`kick_low`)**: Achieved a perfect $1.00$ F1-score, confirming that ankle speed is a robust, scale-invariant feature for separating lower-limb strikes in boxing/MMA context.
